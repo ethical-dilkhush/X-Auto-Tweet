@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web Image Text App</title>
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='styles.css') }}">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+
+<body>
+    <!-- input data text and images--->
+    <h2 style="text-align: center;">Add Tweets in List</h2>
+    <div class="from-container">
+        <form id="entryForm" enctype="multipart/form-data">
+            <input type="hidden" id="entryId" name="entryId">
+            <textarea name="text" id="text" placeholder="Enter text..." maxlength="280" required></textarea>
+            <div id="charCount">280 characters remaining</div><br>
+            <input type="file" name="image" id="image" accept="image/*"><br>
+            <img id="previewImage" style="max-width: 100px; display: none;"><br>
+            <button type="submit" id="addButton">Add</button>
+            <button type="button" id="updateButton" style="display: none;">Update</button>
+        </form>
+    </div>
+    <!---list of tweets in this container----->
+    <h2 style="text-align: center;">List of Tweets</h2>
+    <div id="entriesContainer">
+        {% for entry in entries %}
+        <div class="entry-container" data-id="{{ entry[0] }}" data-text="{{ entry[1] }}" data-image="{{ entry[2] }}">
+            <p class="entry-text">{{ entry[1] }}</p>
+            {% if entry[2] %}
+            <img src="{{ entry[2] }}" alt="Image">
+            {% endif %}
+            <button class="remove-btn">Remove</button>
+            <button class="modify-btn">Modify</button>
+        </div>
+        {% endfor %}
+    </div>
+    <!--- character countiung -->
+    <script>
+        const textarea = document.getElementById('text');
+        const charCount = document.getElementById('charCount');
+        const maxLength = textarea.getAttribute('maxlength');
+
+        // Update character count on input
+        textarea.addEventListener('input', () => {
+            const remaining = maxLength - textarea.value.length;
+            charCount.textContent = `${remaining} characters remaining`;
+
+            // Change color to red when 10 or fewer characters are left
+            if (remaining <= 10) {
+                charCount.style.color = 'red';
+            } else {
+                charCount.style.color = '#666';
+            }
+        });
+
+        // Optional: Prevent typing beyond the limit
+        textarea.addEventListener('keypress', (e) => {
+            if (textarea.value.length >= maxLength) {
+                e.preventDefault(); // Stop further input
+                alert('Character limit reached!');
+            }
+        });
+    </script>
+    <!---form handling and inserting data in database-->
+    <script>
+        $(document).ready(function () {
+            $("#entryForm").submit(function (event) {
+                event.preventDefault();
+                var formData = new FormData(this);
+                $.ajax({
+                    url: "/add",
+                    type: "POST",
+                    data: formData,
+                    processData: false,
+                    contentType: false,
+                    success: function (response) {
+                        if (response.success) {
+                            location.reload();
+                        }
+                    }
+                });
+            });
+
+            $(".remove-btn").click(function () {
+                var entry = $(this).closest(".entry-container");
+                var entryId = entry.data("id");
+                $.post("/delete/" + entryId, function (response) {
+                    if (response.success) {
+                        entry.remove();
+                    }
+                });
+            });
+
+            $(".modify-btn").click(function () {
+                var entry = $(this).closest(".entry-container");
+                var entryId = entry.data("id");
+                var text = entry.data("text");
+                var image = entry.data("image");
+
+                $("#entryId").val(entryId);
+                $("#text").val(text);
+                if (image) {
+                    $("#previewImage").attr("src", image).show();
+                } else {
+                    $("#previewImage").hide();
+                }
+
+                $("#addButton").hide();
+                $("#updateButton").show();
+            });
+
+            $("#updateButton").click(function () {
+                var entryId = $("#entryId").val();
+                var formData = new FormData($("#entryForm")[0]);
+
+                $.ajax({
+                    url: "/modify/" + entryId,
+                    type: "POST",
+                    data: formData,
+                    processData: false,
+                    contentType: false,
+                    success: function (response) {
+                        if (response.success) {
+                            location.reload();
+                        }
+                    }
+                });
+            });
+        });
+    </script>
+
+</body>
+
+</html>
